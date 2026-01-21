@@ -1,0 +1,109 @@
+name: Publish to npm
+
+on:
+    release:
+        types: [published]
+    workflow_dispatch:
+        inputs:
+            version:
+                description: "Version to publish (e.g., 0.1.0, 0.2.0-beta.1)"
+                required: true
+                type: string
+            tag:
+                description: "npm tag (latest, beta, next)"
+                required: true
+                default: "latest"
+                type: choice
+                options:
+                    - latest
+                    - beta
+                    - next
+            dry-run:
+                description: "Dry run (do not actually publish)"
+                required: false
+                default: false
+                type: boolean
+
+jobs:
+    publish:
+        name: Publish Packages
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: read
+            id-token: write
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20.x
+                  cache: "npm"
+                  registry-url: "https://registry.npmjs.org"
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Run tests
+              run: npm test --if-present
+
+            - name: Build all packages
+              run: npm run build
+
+            - name: Configure npm for publishing
+              run: |
+                  echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            # Publish @shader3d/core
+            - name: Publish @shader3d/core
+              if: ${{ !inputs.dry-run }}
+              run: |
+                  cd packages/core
+                  npm publish --access public --tag ${{ inputs.tag || 'latest' }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            # Publish @shader3d/runtime
+            - name: Publish @shader3d/runtime
+              if: ${{ !inputs.dry-run }}
+              run: |
+                  cd packages/runtime
+                  npm publish --access public --tag ${{ inputs.tag || 'latest' }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            # Publish @shader3d/vite-plugin
+            - name: Publish @shader3d/vite-plugin
+              if: ${{ !inputs.dry-run }}
+              run: |
+                  cd packages/vite-plugin
+                  npm publish --access public --tag ${{ inputs.tag || 'latest' }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            # Publish @shader3d/ladder
+            - name: Publish @shader3d/ladder
+              if: ${{ !inputs.dry-run }}
+              run: |
+                  cd packages/ladder
+                  npm publish --access public --tag ${{ inputs.tag || 'latest' }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Dry run summary
+              if: ${{ inputs.dry-run }}
+              run: |
+                  echo "🔍 DRY RUN - No packages were published"
+                  echo "Would have published:"
+                  echo "  - @shader3d/core"
+                  echo "  - @shader3d/runtime"
+                  echo "  - @shader3d/vite-plugin"
+                  echo "  - @shader3d/ladder"
+                  echo "Tag: ${{ inputs.tag || 'latest' }}"

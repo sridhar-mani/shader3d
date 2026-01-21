@@ -1,0 +1,44 @@
+{
+  "name": "shader3d-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "example"],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "build:core": "npm run build -w @shader3d/core",
+    "build:runtime": "npm run build -w @shader3d/runtime",
+    "build:vite-plugin": "npm run build -w @shader3d/vite-plugin",
+    "build:ladder": "npm run build -w @shader3d/ladder",
+    "dev": "npm run dev -w example",
+    "dev:all": "npm run dev --workspaces --if-present --parallel",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "clean": "rimraf packages/*/dist example/dist",
+    "typecheck": "tsc --noEmit -p packages/core && tsc --noEmit -p packages/runtime"
+  },
+  "keywords": [
+    "shader",
+    "webgpu",
+    "wgsl",
+    "glsl",
+    "graphics",
+    "3d",
+    "dsl",
+    "transpiler"
+  ],
+  "author": "Shader3D Team",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shader3d/shader3d.git"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
