@@ -164,7 +164,6 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
         // Lazy load transpiler
         if (!transpiler) {
           // Dynamic import - the package is a workspace dependency
-          // @ts-expect-error - Resolved at runtime after packages are built
           transpiler = await import('@shader3d/core').catch(() => {
             // Fallback: use direct import for development
             // @ts-expect-error - Resolved at runtime
@@ -260,7 +259,6 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
 
         // Lazy load transpiler
         if (!transpiler) {
-          // @ts-expect-error - Resolved at runtime after packages are built
           transpiler = await import('@shader3d/core').catch(() => {
             // @ts-expect-error - Resolved at runtime
             return import('../../../core/src/index.js')

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ShaderCanvas } from './components/ShaderCanvas'
-import { ShaderSelector, ShaderOption } from './components/ShaderSelector'
+import { ShaderSelector, type ShaderOption } from './components/ShaderSelector'
 import { GRADIENT_SHADER } from './shaders/gradient.wgsl'
 import { PLASMA_SHADER } from './shaders/plasma.wgsl'
 import { METABALLS_SHADER } from './shaders/metaballs.wgsl'

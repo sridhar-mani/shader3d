@@ -244,7 +244,6 @@ async function buildCommand() {
     // Dynamically import the transpiler
     let Shader3DTranspiler;
     try {
-        // @ts-expect-error - Resolved at runtime after packages are built
         const core = await import('@shader3d/core');
         Shader3DTranspiler = core.Shader3DTranspiler;
     }
