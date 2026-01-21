@@ -148,7 +148,14 @@ export function useShaderAnimation(
       }
     })
 
-    // Create uniform buffer (32 bytes: time + resolution + mouse)
+    // Create uniform buffer
+    // WGSL struct layout with proper alignment:
+    // struct Uniforms {
+    //   time: f32,          // offset 0, size 4, align 4
+    //   resolution: vec2<f32>, // offset 8 (rounded up from 4 to vec2 align of 8), size 8
+    //   mouse: vec2<f32>,   // offset 16, size 8
+    // }
+    // Total size: 24 bytes, but we pad to 32 for safety
     const uniformBuffer = device.createBuffer({
       label: 'Uniforms',
       size: 32,
@@ -184,16 +191,20 @@ export function useShaderAnimation(
 
       if (!pipeline || !uniformBuffer || !bindGroup) return
 
-      // Update uniforms
+      // Update uniforms with proper WGSL alignment
+      // time: f32 at offset 0
+      // padding to align vec2 at offset 8
+      // resolution: vec2<f32> at offset 8
+      // mouse: vec2<f32> at offset 16
       const time = (performance.now() - startTimeRef.current) / 1000
       const uniformData = new Float32Array([
-        time,
-        options.width,
-        options.height,
-        0, // padding
-        mouseRef.current.x,
-        mouseRef.current.y,
-        0, 0 // padding
+        time,                      // offset 0
+        0,                         // offset 4 (padding for vec2 alignment)
+        options.width,             // offset 8 (resolution.x)
+        options.height,            // offset 12 (resolution.y)
+        mouseRef.current.x,        // offset 16 (mouse.x)
+        mouseRef.current.y,        // offset 20 (mouse.y)
+        0, 0                       // padding to 32 bytes
       ])
       device.queue.writeBuffer(uniformBuffer, 0, uniformData)
 
