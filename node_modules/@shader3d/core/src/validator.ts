@@ -344,7 +344,7 @@ export function formatValidationErrors(errors: ValidationError[]): string {
   return errors.map(err => {
     const loc = err.location ? `${err.location.file}:${err.location.line}:${err.location.column}` : ''
     const prefix = `[${err.code}] ${err.severity.toUpperCase()}`
-    const suggestion = err.suggestion ? `\n  💡 ${err.suggestion}` : ''
+    const suggestion = err.suggestion ? `\n  Hint: ${err.suggestion}` : '';
     return `${prefix} ${loc}\n  ${err.message}${suggestion}`
   }).join('\n\n')
 }

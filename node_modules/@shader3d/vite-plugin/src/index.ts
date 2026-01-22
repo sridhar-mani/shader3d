@@ -64,28 +64,28 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
     strict = false,
     // Reserved for future GLSL fallback support
     // glslFallback = false,
-  } = options
+  } = options;
 
-  let server: ViteDevServer | undefined
-  let transpiler: any
-  
+  let server: ViteDevServer | undefined;
+  let transpiler: any;
+
   // Module cache for HMR
-  const moduleCache = new Map<string, CachedModule>()
+  const moduleCache = new Map<string, CachedModule>();
 
   // Simple hash function for cache invalidation
   const hashCode = (str: string): string => {
-    let hash = 0
+    let hash = 0;
     for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
-      hash = hash & hash
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash;
     }
-    return hash.toString(36)
-  }
+    return hash.toString(36);
+  };
 
   return {
     name: 'vite-plugin-shader3d',
-    
+
     // Run before other plugins
     enforce: 'pre',
 
@@ -93,22 +93,24 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
      * Store dev server reference
      */
     configureServer(_server: ViteDevServer) {
-      server = _server
-      
+      server = _server;
+
       // Custom middleware for shader debugging
       server.middlewares.use((req: any, res: any, next: () => void) => {
         if (req.url === '/__shader3d__/info') {
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({
-            version: '0.1.0',
-            cachedModules: moduleCache.size,
-            extensions,
-            hmrEnabled: hmr
-          }))
-          return
+          res.setHeader('Content-Type', 'application/json');
+          res.end(
+            JSON.stringify({
+              version: '0.1.0',
+              cachedModules: moduleCache.size,
+              extensions,
+              hmrEnabled: hmr,
+            })
+          );
+          return;
         }
-        next()
-      })
+        next();
+      });
     },
 
     /**
@@ -117,15 +119,15 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
     resolveId(id: string) {
       // Virtual module for shader registry
       if (id === 'virtual:shader3d/registry') {
-        return '\0virtual:shader3d/registry'
-      }
-      
-      // Virtual module for runtime
-      if (id === 'virtual:shader3d/runtime') {
-        return '\0virtual:shader3d/runtime'
+        return '\0virtual:shader3d/registry';
       }
 
-      return null
+      // Virtual module for runtime
+      if (id === 'virtual:shader3d/runtime') {
+        return '\0virtual:shader3d/runtime';
+      }
+
+      return null;
     },
 
     /**
@@ -134,15 +136,15 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
     load(id: string) {
       // Shader registry virtual module
       if (id === '\0virtual:shader3d/registry') {
-        return generateRegistryModule(moduleCache)
+        return generateRegistryModule(moduleCache);
       }
 
       // Runtime virtual module
       if (id === '\0virtual:shader3d/runtime') {
-        return generateRuntimeModule()
+        return generateRuntimeModule();
       }
 
-      return null
+      return null;
     },
 
     /**
@@ -154,10 +156,10 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
         // Check for magic comments in JS/TS files
         if (magicComments && (id.endsWith('.js') || id.endsWith('.ts') || id.endsWith('.tsx'))) {
           if (hasMagicComments(code)) {
-            return await transformMagicComments(code, id, this, moduleCache, performanceHints)
+            return await transformMagicComments(code, id, this, moduleCache, performanceHints);
           }
         }
-        return null
+        return null;
       }
 
       try {
@@ -167,62 +169,61 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
           transpiler = await import('@shader3d/core').catch(() => {
             // Fallback: use direct import for development
             // @ts-expect-error - Resolved at runtime
-            return import('../../../core/src/index.js')
-          })
+            return import('../../../core/src/index.js');
+          });
         }
 
         // Transpile the shader
         const result: TranspileResult = transpiler.transpile(code, id, {
           sourceMap: true,
           strict,
-          debug: true
-        })
+          debug: true,
+        });
 
         // Check for errors
-        if (result.errors && result.errors.some(e => e.severity === 'error')) {
-          const errorMsg = formatErrors(result.errors, id)
-          this.error(errorMsg)
-          return null
+        if (result.errors && result.errors.some((e) => e.severity === 'error')) {
+          const errorMsg = formatErrors(result.errors, id);
+          this.error(errorMsg);
+          return null;
         }
 
         // Show warnings
         if (result.errors) {
           result.errors
-            .filter(e => e.severity === 'warning')
-            .forEach(w => this.warn(w.message))
+            .filter((e) => e.severity === 'warning')
+            .forEach((w) => this.warn(w.message));
         }
 
         // Performance hints
         if (performanceHints) {
-          const shaderCount = (result.wgsl.match(/@compute|@vertex|@fragment/g) || []).length
-          console.log(`\x1b[35m✨ Shader3D:\x1b[0m ${path.basename(id)} → ${shaderCount} GPU shader(s)`)
+          const shaderCount = (result.wgsl.match(/@compute|@vertex|@fragment/g) || []).length;
+          console.log(`[Shader3D] ${path.basename(id)} → ${shaderCount} GPU shader(s)`);
         }
 
         // Cache for HMR
-        const hash = hashCode(code)
+        const hash = hashCode(code);
         moduleCache.set(id, {
           js: result.js,
           wgsl: result.wgsl,
           timestamp: Date.now(),
-          hash
-        })
+          hash,
+        });
 
         // Generate output with HMR support
-        let output = result.js
+        let output = result.js;
 
         // Add HMR client code
         if (hmr && server) {
-          output += generateHMRCode(id)
+          output += generateHMRCode(id);
         }
 
         return {
           code: output,
-          map: null // Source map is embedded
-        }
-
+          map: null, // Source map is embedded
+        };
       } catch (error: any) {
-        this.error(`Failed to compile ${id}: ${error.message}`)
-        return null
+        this.error(`Failed to compile ${id}: ${error.message}`);
+        return null;
       }
     },
 
@@ -230,64 +231,69 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
      * Handle Hot Module Replacement
      */
     async handleHotUpdate(ctx: HmrContext) {
-      const { file, server, read } = ctx
+      const { file, server, read } = ctx;
 
       // Check if this is a shader file
       if (!shouldProcess(file, extensions)) {
         // Check for magic comments
-        if (magicComments && (file.endsWith('.js') || file.endsWith('.ts') || file.endsWith('.tsx'))) {
-          const content = await read()
+        if (
+          magicComments &&
+          (file.endsWith('.js') || file.endsWith('.ts') || file.endsWith('.tsx'))
+        ) {
+          const content = await read();
           if (!hasMagicComments(content)) {
-            return
+            return;
           }
         } else {
-          return
+          return;
         }
       }
 
-      if (!hmr) return
+      if (!hmr) return;
 
       try {
-        const source = await read()
-        const hash = hashCode(source)
-        const cached = moduleCache.get(file)
+        const source = await read();
+        const hash = hashCode(source);
+        const cached = moduleCache.get(file);
 
         // Skip if content hasn't changed
         if (cached && cached.hash === hash) {
-          return []
+          return [];
         }
 
         // Lazy load transpiler
         if (!transpiler) {
           transpiler = await import('@shader3d/core').catch(() => {
             // @ts-expect-error - Resolved at runtime
-            return import('../../../core/src/index.js')
-          })
+            return import('../../../core/src/index.js');
+          });
         }
 
         // Recompile
         const result: TranspileResult = transpiler.transpile(source, file, {
           sourceMap: true,
-          strict
-        })
+          strict,
+        });
 
         // Handle errors with overlay
-        if (result.errors && result.errors.some(e => e.severity === 'error')) {
+        if (result.errors && result.errors.some((e) => e.severity === 'error')) {
           if (overlay) {
             server.ws.send({
               type: 'error',
               err: {
                 message: formatErrors(result.errors, file),
                 stack: '',
-                loc: result.errors[0]?.location ? {
-                  file: result.errors[0].location.file,
-                  line: result.errors[0].location.line,
-                  column: result.errors[0].location.column
-                } : undefined
-              }
-            })
+                loc: result.errors[0]?.location
+                  ? {
+                      file: result.errors[0].location.file,
+                      line: result.errors[0].location.line,
+                      column: result.errors[0].location.column,
+                    }
+                  : undefined,
+              },
+            });
           }
-          return []
+          return [];
         }
 
         // Update cache
@@ -295,42 +301,40 @@ export default function shader3DPlugin(options: Shader3DPluginOptions = {}): Plu
           js: result.js,
           wgsl: result.wgsl,
           timestamp: Date.now(),
-          hash
-        })
+          hash,
+        });
 
         // Send custom HMR event with shader code
-        console.log(`\x1b[35m🔄 Shader3D:\x1b[0m Hot reloading ${path.basename(file)}`)
-        
+        console.log(`\x1b[35m🔄 Shader3D:\x1b[0m Hot reloading ${path.basename(file)}`);
+
         server.ws.send({
           type: 'custom',
           event: 'shader3d:update',
           data: {
             file,
             wgsl: result.wgsl,
-            timestamp: Date.now()
-          }
-        })
+            timestamp: Date.now(),
+          },
+        });
 
         // Let Vite handle the JS module update
-        return undefined
-
+        return undefined;
       } catch (error: any) {
-        console.error(`\x1b[31m❌ Shader3D:\x1b[0m HMR failed for ${file}:`, error.message)
-        return []
+        console.error(`\x1b[31m❌ Shader3D:\x1b[0m HMR failed for ${file}:`, error.message);
+        return [];
       }
-    }
-  }
+    },
+  };
 }
 
 // Helper Functions
 
 function shouldProcess(id: string, extensions: string[]): boolean {
-  return extensions.some(ext => id.endsWith(ext))
+  return extensions.some((ext) => id.endsWith(ext));
 }
 
 function hasMagicComments(code: string): boolean {
-  return /@3d-shader\s+(compute|vertex|fragment)/.test(code) ||
-         /@shader3d/.test(code)
+  return /@3d-shader\s+(compute|vertex|fragment)/.test(code) || /@shader3d/.test(code);
 }
 
 async function transformMagicComments(
@@ -341,41 +345,43 @@ async function transformMagicComments(
   hints: boolean
 ): Promise<{ code: string; map: null } | null> {
   // Find magic comments
-  const magicRegex = /\/\*\s*@3d-shader\s+(compute|vertex|fragment)(?:\s+\w+=\S+)*\s*\*\/\s*function\s+(\w+)/g
-  const matches = [...code.matchAll(magicRegex)]
+  const magicRegex =
+    /\/\*\s*@3d-shader\s+(compute|vertex|fragment)(?:\s+\w+=\S+)*\s*\*\/\s*function\s+(\w+)/g;
+  const matches = [...code.matchAll(magicRegex)];
 
   if (matches.length === 0) {
-    return null
+    return null;
   }
 
   if (hints) {
-    console.log(`\x1b[33m🎯 Shader3D:\x1b[0m ${path.basename(id)} → ${matches.length} magic comment shader(s)`)
+    console.log(`[Shader3D] ${path.basename(id)} → ${matches.length} magic comment shader(s)`);
   }
 
   // Generate WGSL stubs for magic comment functions
   // Full conversion would happen with @shader3d/ladder
-  const wgslCode = `// Auto-generated from magic comments in ${path.basename(id)}\n` +
-    matches.map(m => `// @${m[1]} fn ${m[2]}`).join('\n')
+  const wgslCode =
+    `// Auto-generated from magic comments in ${path.basename(id)}\n` +
+    matches.map((m) => `// @${m[1]} fn ${m[2]}`).join('\n');
 
   // Inject shader code export
   const output = `
 // Shader3D Magic Comments - Auto-injected
 export const __shader3d_magic__ = {
-  functions: ${JSON.stringify(matches.map(m => ({ stage: m[1], name: m[2] })))},
+  functions: ${JSON.stringify(matches.map((m) => ({ stage: m[1], name: m[2] })))},
   hint: "Run 'npx shader3d upgrade ${path.basename(id)}' for full type-safe shaders"
 };
 
 ${code}
-`
+`;
 
   cache.set(id, {
     js: output,
     wgsl: wgslCode,
     timestamp: Date.now(),
-    hash: ''
-  })
+    hash: '',
+  });
 
-  return { code: output, map: null }
+  return { code: output, map: null };
 }
 
 function formatErrors(errors: any[], file: string): string {

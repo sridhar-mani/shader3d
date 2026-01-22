@@ -213,7 +213,7 @@ export default defineConfig({
   <div id="root"></div>
   <script type="module" src="/src/main.${ext}"></script>
 </body>
-</html>`
+</html>`,
       },
       {
         path: `src/main.${ext}`,
@@ -227,7 +227,7 @@ ReactDOM.createRoot(document.getElementById('root')${options.typescript ? '!' : 
     <App />
   </React.StrictMode>
 )
-`
+`,
       },
       {
         path: `src/App.${ext}`,
@@ -238,30 +238,30 @@ import './App.css'
 function App() {
   return (
     <div className="app">
-      <h1>🎨 ${options.name}</h1>
+      <h1>${options.name}</h1>
       <ShaderCanvas />
     </div>
   )
 }
 
 export default App
-`
+`,
       },
       {
         path: `src/components/ShaderCanvas.${ext}`,
-        content: this.getReactShaderComponent(options.level, options.typescript)
+        content: this.getReactShaderComponent(options.level, options.typescript),
       },
       {
         path: 'src/index.css',
         content: `body { margin: 0; font-family: system-ui; background: #1a1a2e; color: #fff; }
 .app { padding: 2rem; text-align: center; }
 h1 { margin-bottom: 1rem; }
-`
+`,
       },
       {
         path: 'src/App.css',
         content: `canvas { border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-`
+`,
       },
       {
         path: 'vite.config.ts',
@@ -275,9 +275,9 @@ export default defineConfig({
     shader3d({ hmr: true })
   ]
 })
-`
-      }
-    ]
+`,
+      },
+    ];
   }
 
   private generateParticlesTemplate(options: ScaffoldOptions): GeneratedFile[] {

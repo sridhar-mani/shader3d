@@ -40,22 +40,22 @@ function printBanner(): void {
   console.log(`
 ${colors.cyan}╔═══════════════════════════════════════════════════════════╗
 ║                                                               ║
-║   ${colors.bright}🎨 Shader3D${colors.reset}${colors.cyan}                                             ║
-║   ${colors.dim}The Progressive Graphics Programming Library${colors.reset}${colors.cyan}              ║
+║   ${colors.bright}Shader3D${colors.reset}${colors.cyan}                                               ║
+║   ${colors.dim}Progressive Graphics Programming${colors.reset}${colors.cyan}                         ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝${colors.reset}
-`)
+`);
 }
 
 /**
  * Ask a question
  */
 async function ask(rl: readline.Interface, question: string): Promise<string> {
-  return new Promise(resolve => {
-    rl.question(`${colors.green}?${colors.reset} ${question}`, answer => {
-      resolve(answer.trim())
-    })
-  })
+  return new Promise((resolve) => {
+    rl.question(`${colors.green}?${colors.reset} ${question}`, (answer) => {
+      resolve(answer.trim());
+    });
+  });
 }
 
 /**
@@ -66,33 +66,37 @@ async function select<T extends string>(
   question: string,
   options: Array<{ value: T; label: string }>
 ): Promise<T> {
-  console.log(`\n${colors.green}?${colors.reset} ${question}`)
-  
+  console.log(`\n${colors.green}?${colors.reset} ${question}`);
+
   options.forEach((opt, i) => {
-    console.log(`  ${colors.cyan}${i + 1})${colors.reset} ${opt.label}`)
-  })
-  
+    console.log(`  ${colors.cyan}${i + 1})${colors.reset} ${opt.label}`);
+  });
+
   while (true) {
-    const answer = await ask(rl, `Enter number (1-${options.length}): `)
-    const index = parseInt(answer) - 1
-    
+    const answer = await ask(rl, `Enter number (1-${options.length}): `);
+    const index = parseInt(answer) - 1;
+
     if (index >= 0 && index < options.length) {
-      return options[index].value
+      return options[index].value;
     }
-    
-    print(`Please enter a number between 1 and ${options.length}`, 'yellow')
+
+    print(`Please enter a number between 1 and ${options.length}`, 'yellow');
   }
 }
 
 /**
  * Ask yes/no question
  */
-async function confirm(rl: readline.Interface, question: string, defaultYes = true): Promise<boolean> {
-  const hint = defaultYes ? '(Y/n)' : '(y/N)'
-  const answer = await ask(rl, `${question} ${hint}: `)
-  
-  if (answer === '') return defaultYes
-  return answer.toLowerCase().startsWith('y')
+async function confirm(
+  rl: readline.Interface,
+  question: string,
+  defaultYes = true
+): Promise<boolean> {
+  const hint = defaultYes ? '(Y/n)' : '(y/N)';
+  const answer = await ask(rl, `${question} ${hint}: `);
+
+  if (answer === '') return defaultYes;
+  return answer.toLowerCase().startsWith('y');
 }
 
 /**
@@ -101,27 +105,27 @@ async function confirm(rl: readline.Interface, question: string, defaultYes = tr
 async function initCommand(args: string[]): Promise<void> {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
-  })
+    output: process.stdout,
+  });
 
   try {
-    printBanner()
-    print('Let\'s create a new Shader3D project!\n', 'bright')
+    printBanner();
+    print("Let's create a new Shader3D project!\n", 'bright');
 
     // Project name
-    const name = args[0] || await ask(rl, 'Project name: ')
+    const name = args[0] || (await ask(rl, 'Project name: '));
     if (!name) {
-      print('Project name is required', 'red')
-      process.exit(1)
+      print('Project name is required', 'red');
+      process.exit(1);
     }
 
     // Skill level
-    const level = await select<string>(rl, 'What\'s your shader experience level?', [
+    const level = await select<string>(rl, "What's your shader experience level?", [
       { value: '0', label: `${SKILL_LEVELS[0].name} - ${SKILL_LEVELS[0].description}` },
       { value: '1', label: `${SKILL_LEVELS[1].name} - ${SKILL_LEVELS[1].description}` },
       { value: '2', label: `${SKILL_LEVELS[2].name} - ${SKILL_LEVELS[2].description}` },
-      { value: '3', label: `${SKILL_LEVELS[3].name} - ${SKILL_LEVELS[3].description}` }
-    ])
+      { value: '3', label: `${SKILL_LEVELS[3].name} - ${SKILL_LEVELS[3].description}` },
+    ]);
 
     // Template
     const template = await select<ProjectTemplate>(rl, 'Choose a template:', [
@@ -129,17 +133,17 @@ async function initCommand(args: string[]): Promise<void> {
       { value: 'vite-react', label: 'Vite + React' },
       { value: 'particles', label: 'Particle System Demo' },
       { value: 'raymarching', label: 'Raymarching/SDF Demo' },
-      { value: 'minimal', label: 'Minimal (just shader + HTML)' }
-    ])
+      { value: 'minimal', label: 'Minimal (just shader + HTML)' },
+    ]);
 
     // TypeScript
-    const typescript = await confirm(rl, 'Use TypeScript?', true)
+    const typescript = await confirm(rl, 'Use TypeScript?', true);
 
     // Git
-    const git = await confirm(rl, 'Initialize git repository?', true)
+    const git = await confirm(rl, 'Initialize git repository?', true);
 
     // Install deps
-    const installDeps = await confirm(rl, 'Install dependencies?', true)
+    const installDeps = await confirm(rl, 'Install dependencies?', true);
 
     const options: ScaffoldOptions = {
       name,
@@ -147,67 +151,69 @@ async function initCommand(args: string[]): Promise<void> {
       level: parseInt(level) as SkillLevel,
       typescript,
       git,
-      installDeps
-    }
+      installDeps,
+    };
 
-    console.log()
-    print('Creating project...', 'cyan')
+    console.log();
+    print('Creating project...', 'cyan');
 
     // Generate files
-    const scaffolder = new ProjectScaffolder()
-    const files = scaffolder.scaffold(options)
-    
-    const targetDir = path.join(process.cwd(), name)
-    
+    const scaffolder = new ProjectScaffolder();
+    const files = scaffolder.scaffold(options);
+
+    const targetDir = path.join(process.cwd(), name);
+
     // Check if directory exists
     if (fs.existsSync(targetDir)) {
-      const overwrite = await confirm(rl, `Directory "${name}" already exists. Overwrite?`, false)
+      const overwrite = await confirm(rl, `Directory "${name}" already exists. Overwrite?`, false);
       if (!overwrite) {
-        print('Aborted', 'yellow')
-        process.exit(0)
+        print('Aborted', 'yellow');
+        process.exit(0);
       }
     }
 
     // Write files
-    await scaffolder.write(targetDir, files)
-    
+    await scaffolder.write(targetDir, files);
+
     // Init git
     if (git) {
-      const { execSync } = await import('child_process')
+      const { execSync } = await import('child_process');
       try {
-        execSync('git init', { cwd: targetDir, stdio: 'ignore' })
-        print('✓ Initialized git repository', 'green')
+        execSync('git init', { cwd: targetDir, stdio: 'ignore' });
+        print('✓ Initialized git repository', 'green');
       } catch {
-        print('⚠ Failed to initialize git', 'yellow')
+        print('⚠ Failed to initialize git', 'yellow');
       }
     }
 
     // Install dependencies
     if (installDeps) {
-      print('\nInstalling dependencies...', 'cyan')
-      const { execSync } = await import('child_process')
+      print('\nInstalling dependencies...', 'cyan');
+      const { execSync } = await import('child_process');
       try {
-        execSync('npm install', { cwd: targetDir, stdio: 'inherit' })
-        print('✓ Dependencies installed', 'green')
+        execSync('npm install', { cwd: targetDir, stdio: 'inherit' });
+        print('✓ Dependencies installed', 'green');
       } catch {
-        print('⚠ Failed to install dependencies', 'yellow')
+        print('⚠ Failed to install dependencies', 'yellow');
       }
     }
 
     // Success message
-    console.log()
-    print('🎉 Project created successfully!', 'green')
-    console.log()
-    print('Next steps:', 'bright')
-    console.log(`  cd ${name}`)
-    if (!installDeps) console.log('  npm install')
-    console.log('  npm run dev')
-    console.log()
-    print(`You're starting at Level ${level}: ${SKILL_LEVELS[parseInt(level) as SkillLevel].name}`, 'cyan')
-    print('Run `shader3d upgrade` when you\'re ready to level up!', 'dim')
-
+    console.log();
+    print('Project created successfully!', 'green');
+    console.log();
+    print('Next steps:', 'bright');
+    console.log(`  cd ${name}`);
+    if (!installDeps) console.log('  npm install');
+    console.log('  npm run dev');
+    console.log();
+    print(
+      `You're starting at Level ${level}: ${SKILL_LEVELS[parseInt(level) as SkillLevel].name}`,
+      'cyan'
+    );
+    print("Run `shader3d upgrade` when you're ready to level up!", 'dim');
   } finally {
-    rl.close()
+    rl.close();
   }
 }
 
@@ -215,58 +221,58 @@ async function initCommand(args: string[]): Promise<void> {
  * Upgrade command - suggest next level
  */
 async function upgradeCommand(): Promise<void> {
-  const cwd = process.cwd()
-  
-  print('Analyzing your code...', 'cyan')
+  const cwd = process.cwd();
+
+  print('Analyzing your code...', 'cyan');
 
   // Find shader files
-  const files = await findShaderFiles(cwd)
+  const files = await findShaderFiles(cwd);
   if (files.length === 0) {
-    print('No shader files found in current directory', 'yellow')
-    return
+    print('No shader files found in current directory', 'yellow');
+    return;
   }
 
   // Detect current level
-  const detector = new SkillLevelDetector()
-  let totalLevel = 0
-  let fileCount = 0
+  const detector = new SkillLevelDetector();
+  let totalLevel = 0;
+  let fileCount = 0;
 
   for (const file of files) {
-    const content = await fs.promises.readFile(file, 'utf-8')
-    const result = detector.detect(content, file)
-    totalLevel += result.level
-    fileCount++
-    
-    print(`\n📄 ${path.relative(cwd, file)}`, 'bright')
-    print(`   Level: ${result.level} (${SKILL_LEVELS[result.level].name})`, 'cyan')
-    print(`   Confidence: ${Math.round(result.confidence * 100)}%`, 'dim')
-    
+    const content = await fs.promises.readFile(file, 'utf-8');
+    const result = detector.detect(content, file);
+    totalLevel += result.level;
+    fileCount++;
+
+    print(`\n${path.relative(cwd, file)}`, 'bright');
+    print(`   Level: ${result.level} (${SKILL_LEVELS[result.level].name})`, 'cyan');
+    print(`   Confidence: ${Math.round(result.confidence * 100)}%`, 'dim');
+
     if (result.suggestions.length > 0) {
-      print('   Suggestions:', 'yellow')
-      result.suggestions.slice(0, 3).forEach(s => {
-        print(`     - ${s}`, 'dim')
-      })
+      print('   Suggestions:', 'yellow');
+      result.suggestions.slice(0, 3).forEach((s) => {
+        print(`     - ${s}`, 'dim');
+      });
     }
   }
 
-  const avgLevel = Math.round(totalLevel / fileCount) as SkillLevel
-  const nextLevel = detector.getNextLevel(avgLevel)
+  const avgLevel = Math.round(totalLevel / fileCount) as SkillLevel;
+  const nextLevel = detector.getNextLevel(avgLevel);
 
-  console.log()
-  print(`═══════════════════════════════════════`, 'cyan')
-  print(`Your current level: ${avgLevel} (${SKILL_LEVELS[avgLevel].name})`, 'bright')
-  
+  console.log();
+  print(`═══════════════════════════════════════`, 'cyan');
+  print(`Your current level: ${avgLevel} (${SKILL_LEVELS[avgLevel].name})`, 'bright');
+
   if (nextLevel) {
-    print(`Next level: ${nextLevel} (${SKILL_LEVELS[nextLevel].name})`, 'green')
-    console.log()
-    print('To reach the next level, try:', 'bright')
-    
-    const learningPath = detector.getLearningPath(avgLevel, nextLevel)
+    print(`Next level: ${nextLevel} (${SKILL_LEVELS[nextLevel].name})`, 'green');
+    console.log();
+    print('To reach the next level, try:', 'bright');
+
+    const learningPath = detector.getLearningPath(avgLevel, nextLevel);
     learningPath.forEach((item, i) => {
-      print(`  ${i + 1}. ${item.description}`, 'dim')
-    })
+      print(`  ${i + 1}. ${item.description}`, 'dim');
+    });
   } else {
-    print('🏆 You\'ve reached the highest level! You\'re a shader expert!', 'magenta')
+    print("🏆 You've reached the highest level! You're a shader expert!", 'magenta');
   }
 }
 
