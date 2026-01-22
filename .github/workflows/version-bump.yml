@@ -63,16 +63,35 @@ jobs:
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
 
-                  # Get current version and calculate new version
+                  # Get current version
                   CURRENT_VERSION=$(node -p "require('./packages/core/package.json').version")
                   IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
                   
+                  # Calculate new version with 0-30 cycle logic
                   if [ "${{ steps.version.outputs.BUMP }}" = "major" ]; then
                     NEW_VERSION="$((MAJOR + 1)).0.0"
                   elif [ "${{ steps.version.outputs.BUMP }}" = "minor" ]; then
-                    NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+                    if [ "$PATCH" -ge 30 ]; then
+                      # Patch reached 30, bump minor
+                      NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+                    else
+                      # Patch < 30, bump minor as requested
+                      NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+                    fi
                   else
-                    NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+                    # Patch bump
+                    if [ "$PATCH" -ge 30 ]; then
+                      # Auto-bump minor when patch reaches 30
+                      NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+                    else
+                      NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+                    fi
+                  fi
+                  
+                  # Check for minor overflow (30+ means bump major)
+                  IFS='.' read -r NEW_MAJOR NEW_MINOR NEW_PATCH <<< "$NEW_VERSION"
+                  if [ "$NEW_MINOR" -ge 30 ]; then
+                    NEW_VERSION="$((NEW_MAJOR + 1)).0.0"
                   fi
                   
                   TAG="v$NEW_VERSION"
@@ -83,8 +102,12 @@ jobs:
                     exit 0
                   fi
 
-                  # Update versions
-                  npm version ${{ steps.version.outputs.BUMP }} --workspaces --no-git-tag-version
+                  # Manually update all package.json files
+                  for pkg in packages/core packages/runtime packages/vite-plugin packages/ladder; do
+                    node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('$pkg/package.json')); pkg.version = '$NEW_VERSION'; fs.writeFileSync('$pkg/package.json', JSON.stringify(pkg, null, 2) + '\n');"
+                  done
+                  
+                  # Update package-lock.json
                   npm install --package-lock-only
 
                   git add .
