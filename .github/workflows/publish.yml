@@ -55,47 +55,33 @@ jobs:
             - name: Build all packages
               run: npm run build
 
-            - name: Configure npm for publishing
-              run: |
-                  echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
             # Publish @shader3d/core
             - name: Publish @shader3d/core
               if: ${{ !inputs.dry-run }}
               run: |
                   cd packages/core
-                  npm publish --access public --tag ${{ inputs.tag || 'latest' }}
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  npm publish --access public --provenance --tag ${{ inputs.tag || 'latest' }}
 
             # Publish @shader3d/runtime
             - name: Publish @shader3d/runtime
               if: ${{ !inputs.dry-run }}
               run: |
                   cd packages/runtime
-                  npm publish --access public --tag ${{ inputs.tag || 'latest' }}
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  npm publish --access public --provenance --tag ${{ inputs.tag || 'latest' }}
 
             # Publish @shader3d/vite-plugin
             - name: Publish @shader3d/vite-plugin
               if: ${{ !inputs.dry-run }}
               run: |
                   cd packages/vite-plugin
-                  npm publish --access public --tag ${{ inputs.tag || 'latest' }}
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  npm publish --access public --provenance --tag ${{ inputs.tag || 'latest' }}
 
             # Publish @shader3d/ladder
             - name: Publish @shader3d/ladder
               if: ${{ !inputs.dry-run }}
               run: |
                   cd packages/ladder
-                  npm publish --access public --tag ${{ inputs.tag || 'latest' }}
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  npm publish --access public --provenance --tag ${{ inputs.tag || 'latest' }}
 
             - name: Dry run summary
               if: ${{ inputs.dry-run }}
