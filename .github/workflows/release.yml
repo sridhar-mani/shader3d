@@ -130,8 +130,17 @@ jobs:
 
             - name: Publish packages
               run: |
+                  VERSION=${GITHUB_REF#refs/tags/v}
                   for pkg in core runtime vite-plugin ladder; do
                     cd packages/$pkg
-                    npm publish --access public --provenance --tag ${{ steps.npm_tag.outputs.TAG }}
+                    PKG_NAME=$(node -p "require('./package.json').name")
+                    
+                    # Check if version already exists on npm
+                    if npm view "$PKG_NAME@$VERSION" version >/dev/null 2>&1; then
+                      echo "⚠️  $PKG_NAME@$VERSION already published, skipping"
+                    else
+                      echo "📦 Publishing $PKG_NAME@$VERSION"
+                      npm publish --access public --provenance --tag ${{ steps.npm_tag.outputs.TAG }}
+                    fi
                     cd ../..
                   done
