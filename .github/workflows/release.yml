@@ -126,17 +126,36 @@ jobs:
             - name: Publish packages
               run: |
                   VERSION=${GITHUB_REF#refs/tags/v}
+                  echo "Publishing version $VERSION"
+                  
                   for pkg in core runtime vite-plugin ladder; do
                     cd packages/$pkg
                     PKG_NAME=$(node -p "require('./package.json').name")
                     
-                    # Check if version already exists on npm
-                    if npm view "$PKG_NAME@$VERSION" version >/dev/null 2>&1; then
-                      echo "⚠️  $PKG_NAME@$VERSION already published, skipping"
-                    else
-                      echo "📦 Publishing $PKG_NAME@$VERSION"
-                      npm publish --access public --provenance --tag ${{ steps.npm_tag.outputs.TAG }} --registry https://registry.npmjs.org/
+                    # Check if exact version already exists on npm
+                    if npm view "$PKG_NAME@$VERSION" version 2>/dev/null; then
+                      echo "✅ $PKG_NAME@$VERSION already exists on npm, skipping"
+                      cd ../..
+                      continue
                     fi
+                    
+                    # Try publishing with provenance
+                    echo "📦 Publishing $PKG_NAME@$VERSION"
+                    if npm publish --access public --provenance --tag ${{ steps.npm_tag.outputs.TAG }} --registry https://registry.npmjs.org/ 2>&1 | tee publish.log; then
+                      echo "✅ Successfully published $PKG_NAME@$VERSION"
+                    else
+                      # Check if it failed due to existing transparency log entry
+                      if grep -q "TLOG_CREATE_ENTRY_ERROR\|already exists in the transparency log" publish.log; then
+                        echo "⚠️  Transparency log entry exists, trying without provenance"
+                        npm publish --access public --tag ${{ steps.npm_tag.outputs.TAG }} --registry https://registry.npmjs.org/
+                      else
+                        echo "❌ Failed to publish $PKG_NAME@$VERSION"
+                        cat publish.log
+                        cd ../..
+                        exit 1
+                      fi
+                    fi
+                    rm -f publish.log
                     cd ../..
                   done
               env:
