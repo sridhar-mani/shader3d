@@ -1,6 +1,6 @@
 {
     "name": "@shader3d/vite-plugin",
-    "version": "0.4.17",
+    "version": "0.4.18",
     "description": "Vite plugin for Shader3D with HMR support",
     "type": "module",
     "main": "./dist/index.js",
