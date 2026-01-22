@@ -13,10 +13,6 @@ jobs:
         permissions:
             contents: write
 
-        outputs:
-            release_id: ${{ steps.create_release.outputs.id }}
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
-
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
@@ -53,13 +49,10 @@ jobs:
                   fi
 
             - name: Create GitHub Release
-              id: create_release
-              uses: actions/create-release@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              uses: softprops/action-gh-release@v1
               with:
                   tag_name: ${{ github.ref }}
-                  release_name: Shader3D v${{ steps.get_version.outputs.VERSION }}
+                  name: Shader3D v${{ steps.get_version.outputs.VERSION }}
                   body: |
                       # Shader3D v${{ steps.get_version.outputs.VERSION }}
 
@@ -88,6 +81,8 @@ jobs:
                       Commercial use requires explicit permission from the maintainers.
                   draft: false
                   prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
     build-and-publish:
         name: Build & Publish
