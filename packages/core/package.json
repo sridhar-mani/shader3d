@@ -1,6 +1,6 @@
 {
     "name": "@shader3d/core",
-    "version": "0.4.7",
+    "version": "0.4.8",
     "description": "Core transpiler and code generation for Shader3D DSL",
     "type": "module",
     "main": "./dist/index.js",
