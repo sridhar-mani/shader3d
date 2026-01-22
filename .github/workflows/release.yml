@@ -1,0 +1,153 @@
+name: Release
+
+on:
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    create-release:
+        name: Create Release
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: write
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Get version from tag
+              id: get_version
+              run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+            - name: Generate changelog
+              id: changelog
+              run: |
+                  # Get the previous tag
+                  PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+                  if [ -z "$PREV_TAG" ]; then
+                    echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+                    echo "Initial release of Shader3D" >> $GITHUB_OUTPUT
+                    echo "" >> $GITHUB_OUTPUT
+                    echo "## Features" >> $GITHUB_OUTPUT
+                    echo "- TypeScript to WGSL transpilation" >> $GITHUB_OUTPUT
+                    echo "- WebGPU runtime with React integration" >> $GITHUB_OUTPUT
+                    echo "- Vite plugin with HMR support" >> $GITHUB_OUTPUT
+                    echo "- Progressive learning system (Ladder)" >> $GITHUB_OUTPUT
+                    echo "EOF" >> $GITHUB_OUTPUT
+                  else
+                    echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+                    echo "## Changes since $PREV_TAG" >> $GITHUB_OUTPUT
+                    echo "" >> $GITHUB_OUTPUT
+                    git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" >> $GITHUB_OUTPUT
+                    echo "" >> $GITHUB_OUTPUT
+                    echo "EOF" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v1
+              with:
+                  tag_name: ${{ github.ref }}
+                  name: Shader3D v${{ steps.get_version.outputs.VERSION }}
+                  body: |
+                      # Shader3D v${{ steps.get_version.outputs.VERSION }}
+
+                      ${{ steps.changelog.outputs.CHANGELOG }}
+
+                      ## Installation
+
+                      ```bash
+                      npm install @shader3d/core @shader3d/runtime
+                      # or
+                      npm install @shader3d/vite-plugin
+                      ```
+
+                      ## Packages
+
+                      | Package | Version |
+                      |---------|---------|
+                      | @shader3d/core | v${{ steps.get_version.outputs.VERSION }} |
+                      | @shader3d/runtime | v${{ steps.get_version.outputs.VERSION }} |
+                      | @shader3d/vite-plugin | v${{ steps.get_version.outputs.VERSION }} |
+                      | @shader3d/ladder | v${{ steps.get_version.outputs.VERSION }} |
+
+                      ## License
+
+                      This software is released under a non-commercial license. 
+                      Commercial use requires explicit permission from the maintainers.
+                  draft: false
+                  prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    build-and-publish:
+        name: Build & Publish
+        needs: create-release
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: read
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20.x
+                  cache: "npm"
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build all packages
+              run: npm run build
+
+            - name: Determine npm tag
+              id: npm_tag
+              run: |
+                  if [[ "${{ github.ref }}" == *"alpha"* ]]; then
+                    echo "TAG=alpha" >> $GITHUB_OUTPUT
+                  elif [[ "${{ github.ref }}" == *"beta"* ]]; then
+                    echo "TAG=beta" >> $GITHUB_OUTPUT
+                  elif [[ "${{ github.ref }}" == *"rc"* ]]; then
+                    echo "TAG=next" >> $GITHUB_OUTPUT
+                  else
+                    echo "TAG=latest" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Publish packages
+              run: |
+                  VERSION=${GITHUB_REF#refs/tags/v}
+                  echo "Publishing version $VERSION"
+                  
+                  for pkg in core runtime vite-plugin ladder; do
+                    cd packages/$pkg
+                    PKG_NAME=$(node -p "require('./package.json').name")
+                    
+                    # Check if exact version already exists on npm
+                    if npm view "$PKG_NAME@$VERSION" version 2>/dev/null; then
+                      echo "✅ $PKG_NAME@$VERSION already exists on npm, skipping"
+                      cd ../..
+                      continue
+                    fi
+                    
+                    echo "📦 Publishing $PKG_NAME@$VERSION"
+                    npm publish --access public --tag ${{ steps.npm_tag.outputs.TAG }}
+                    
+                    if [ $? -eq 0 ]; then
+                      echo "✅ Successfully published $PKG_NAME@$VERSION"
+                    else
+                      echo "❌ Failed to publish $PKG_NAME@$VERSION"
+                      cd ../..
+                      exit 1
+                    fi
+                    cd ../..
+                  done
+              env:
+                  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,128 @@
+name: Version Bump
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    bump:
+        name: Auto Version Bump
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: write
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.PAT_TOKEN }}
+
+                  
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20.x
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Determine version bump
+              id: version
+              run: |
+                  # Get commits since last tag
+                  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+                  
+                  if [ -z "$LAST_TAG" ]; then
+                    # No previous tags, check all commits
+                    COMMITS=$(git log --pretty=format:"%s")
+                  else
+                    COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s")
+                  fi
+
+                  # Determine bump type
+                  if echo "$COMMITS" | grep -qE "^(feat|feature)(\(.+\))?!:|^BREAKING CHANGE:"; then
+                    BUMP="major"
+                  elif echo "$COMMITS" | grep -qE "^(feat|feature)(\(.+\))?:"; then
+                    BUMP="minor"
+                  elif echo "$COMMITS" | grep -qE "^(fix|bugfix|perf)(\(.+\))?:"; then
+                    BUMP="patch"
+                  else
+                    echo "No version bump needed"
+                    echo "SKIP=true" >> $GITHUB_OUTPUT
+                    exit 0
+                  fi
+
+                  echo "BUMP=$BUMP" >> $GITHUB_OUTPUT
+
+            - name: Bump version
+              if: steps.version.outputs.SKIP != 'true'
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  # Get current version from package
+                  CURRENT_VERSION=$(node -p "require('./packages/core/package.json').version")
+                  echo "Current version: $CURRENT_VERSION"
+                  IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+                  
+                  # Calculate new version with 0-30 cycle logic
+                  if [ "${{ steps.version.outputs.BUMP }}" = "major" ]; then
+                    NEW_VERSION="$((MAJOR + 1)).0.0"
+                  elif [ "${{ steps.version.outputs.BUMP }}" = "minor" ]; then
+                    if [ "$PATCH" -ge 30 ]; then
+                      # Patch reached 30, bump minor
+                      NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+                    else
+                      # Patch < 30, bump minor as requested
+                      NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+                    fi
+                  else
+                    # Patch bump
+                    if [ "$PATCH" -ge 30 ]; then
+                      # Auto-bump minor when patch reaches 30
+                      NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+                    else
+                      NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+                    fi
+                  fi
+                  
+                  # Check for minor overflow (30+ means bump major)
+                  IFS='.' read -r NEW_MAJOR NEW_MINOR NEW_PATCH <<< "$NEW_VERSION"
+                  if [ "$NEW_MINOR" -ge 30 ]; then
+                    NEW_VERSION="$((NEW_MAJOR + 1)).0.0"
+                  fi
+                  
+                  echo "New version: $NEW_VERSION"
+                  TAG="v$NEW_VERSION"
+
+                  # Check if tag already exists
+                  if git ls-remote --tags origin | grep -q "refs/tags/$TAG$"; then
+                    echo "⚠️  Tag $TAG already exists on remote, skipping"
+                    exit 0
+                  fi
+
+                  # Manually update all package.json files
+                  echo "Updating package.json files to $NEW_VERSION"
+                  for pkg in packages/core packages/runtime packages/vite-plugin packages/ladder; do
+                    if [ -f "$pkg/package.json" ]; then
+                      node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('$pkg/package.json')); pkg.version = '$NEW_VERSION'; fs.writeFileSync('$pkg/package.json', JSON.stringify(pkg, null, 4) + '\n');"
+                    fi
+                  done
+                  
+                  # Update package-lock.json
+                  npm install --package-lock-only
+
+                  git add .
+                  git commit -m "chore: bump version to $NEW_VERSION"
+                  
+                  echo "Creating tag $TAG"
+                  git tag "$TAG"
+                  
+                  echo "Pushing commit and tag to origin"
+                  git push origin main
+                  git push origin "$TAG"
+                  
+                  echo "✅ Successfully bumped to $NEW_VERSION and pushed tag $TAG"

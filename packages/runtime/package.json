@@ -1,0 +1,72 @@
+{
+    "name": "@shader3d/runtime",
+    "version": "0.4.16",
+    "description": "WebGPU and Three.js runtime for Shader3D",
+    "type": "module",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./webgpu": {
+            "types": "./dist/webgpu.d.ts",
+            "import": "./dist/webgpu.js"
+        },
+        "./threejs": {
+            "types": "./dist/threejs.d.ts",
+            "import": "./dist/threejs.js"
+        }
+    },
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch",
+        "lint": "eslint src --ext .ts",
+        "clean": "rimraf dist"
+    },
+    "keywords": [
+        "shader",
+        "webgpu",
+        "threejs",
+        "graphics",
+        "runtime"
+    ],
+    "author": "Shader3D Team",
+    "license": "SEE LICENSE IN ../../LICENSE",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/shader3d/shader3d.git",
+        "directory": "packages/runtime"
+    },
+    "bugs": {
+        "url": "https://github.com/shader3d/shader3d/issues"
+    },
+    "homepage": "https://shader3d.dev",
+    "devDependencies": {
+        "@types/node": "^20.10.0",
+        "@typescript-eslint/eslint-plugin": "^8.0.0",
+        "@typescript-eslint/parser": "^8.0.0",
+        "@webgpu/types": "^0.1.0",
+        "eslint": "^9.0.0",
+        "rimraf": "^5.0.0",
+        "typescript-eslint": "^8.0.0",
+        "vitest": "^1.0.0"
+    },
+    "peerDependencies": {
+        "three": ">=0.150.0"
+    },
+    "peerDependenciesMeta": {
+        "three": {
+            "optional": true
+        }
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
