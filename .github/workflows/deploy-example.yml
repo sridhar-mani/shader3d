@@ -6,6 +6,7 @@ on:
             - main
         paths:
             - "example/**"
+            - "packages/**"
             - ".github/workflows/deploy-example.yml"
     workflow_dispatch:
 
