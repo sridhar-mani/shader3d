@@ -19,10 +19,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
-          cache: 'npm'
 
-      - name: Upgrade npm
-        run: npm install -g npm@10
+      - name: Upgrade npm and verify
+        run: |
+          npm install -g npm@latest
+          npm --version
 
       - name: Install dependencies
         run: npm ci
@@ -50,10 +51,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
-          cache: 'npm'
 
-      - name: Upgrade npm
-        run: npm install -g npm@10
+      - name: Upgrade npm and verify
+        run: |
+          npm install -g npm@latest
+          npm --version
 
       - name: Install dependencies
         run: npm ci
@@ -81,10 +83,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
-          cache: 'npm'
 
-      - name: Upgrade npm
-        run: npm install -g npm@10
+      - name: Upgrade npm and verify
+        run: |
+          npm install -g npm@latest
+          npm --version
 
       - name: Install dependencies
         run: npm ci
