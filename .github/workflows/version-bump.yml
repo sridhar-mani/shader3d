@@ -1,0 +1,62 @@
+name: Version Bump
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    bump:
+        name: Auto Version Bump
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: write
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20.x
+
+            - name: Determine version bump
+              id: version
+              run: |
+                  # Get commits since last tag
+                  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+                  COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s")
+
+                  # Determine bump type
+                  if echo "$COMMITS" | grep -qE "^(feat|feature)(\(.+\))?!:|^BREAKING CHANGE:"; then
+                    BUMP="major"
+                  elif echo "$COMMITS" | grep -qE "^(feat|feature)(\(.+\))?:"; then
+                    BUMP="minor"
+                  elif echo "$COMMITS" | grep -qE "^(fix|bugfix|perf)(\(.+\))?:"; then
+                    BUMP="patch"
+                  else
+                    echo "No version bump needed"
+                    echo "SKIP=true" >> $GITHUB_OUTPUT
+                    exit 0
+                  fi
+
+                  echo "BUMP=$BUMP" >> $GITHUB_OUTPUT
+
+            - name: Bump version
+              if: steps.version.outputs.SKIP != 'true'
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  npm version ${{ steps.version.outputs.BUMP }} --workspaces --no-git-tag-version
+                  VERSION=$(node -p "require('./package.json').version")
+
+                  git add .
+                  git commit -m "chore: bump version to $VERSION"
+                  git tag "v$VERSION"
+                  git push origin main --tags
