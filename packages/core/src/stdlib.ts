@@ -506,6 +506,304 @@ fn easeOutBounce(t: f32) -> f32 {
 }
 `;
 
+// PBR Lighting functions
+export const lightingLibrary = `
+// Constants
+const PI: f32 = 3.14159265359;
+
+// Fresnel-Schlick approximation
+fn fresnelSchlick(cosTheta: f32, F0: vec3<f32>) -> vec3<f32> {
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
+fn fresnelSchlickRoughness(cosTheta: f32, F0: vec3<f32>, roughness: f32) -> vec3<f32> {
+    return F0 + (max(vec3<f32>(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
+// Normal Distribution Function (GGX/Trowbridge-Reitz)
+fn distributionGGX(N: vec3<f32>, H: vec3<f32>, roughness: f32) -> f32 {
+    let a = roughness * roughness;
+    let a2 = a * a;
+    let NdotH = max(dot(N, H), 0.0);
+    let NdotH2 = NdotH * NdotH;
+    
+    let num = a2;
+    var denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+    
+    return num / denom;
+}
+
+// Geometry function (Schlick-GGX)
+fn geometrySchlickGGX(NdotV: f32, roughness: f32) -> f32 {
+    let r = (roughness + 1.0);
+    let k = (r * r) / 8.0;
+    
+    let num = NdotV;
+    let denom = NdotV * (1.0 - k) + k;
+    
+    return num / denom;
+}
+
+// Smith's method for geometry
+fn geometrySmith(N: vec3<f32>, V: vec3<f32>, L: vec3<f32>, roughness: f32) -> f32 {
+    let NdotV = max(dot(N, V), 0.0);
+    let NdotL = max(dot(N, L), 0.0);
+    let ggx2 = geometrySchlickGGX(NdotV, roughness);
+    let ggx1 = geometrySchlickGGX(NdotL, roughness);
+    
+    return ggx1 * ggx2;
+}
+
+// Cook-Torrance BRDF
+fn cookTorranceBRDF(
+    N: vec3<f32>,
+    V: vec3<f32>,
+    L: vec3<f32>,
+    albedo: vec3<f32>,
+    metallic: f32,
+    roughness: f32
+) -> vec3<f32> {
+    let H = normalize(V + L);
+    
+    let F0 = mix(vec3<f32>(0.04), albedo, metallic);
+    
+    let NDF = distributionGGX(N, H, roughness);
+    let G = geometrySmith(N, V, L, roughness);
+    let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    
+    let numerator = NDF * G * F;
+    let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    let specular = numerator / denominator;
+    
+    let kS = F;
+    var kD = vec3<f32>(1.0) - kS;
+    kD = kD * (1.0 - metallic);
+    
+    let NdotL = max(dot(N, L), 0.0);
+    
+    return (kD * albedo / PI + specular) * NdotL;
+}
+
+// Simple Phong lighting
+fn phongLighting(
+    N: vec3<f32>,
+    L: vec3<f32>,
+    V: vec3<f32>,
+    diffuseColor: vec3<f32>,
+    specularColor: vec3<f32>,
+    shininess: f32
+) -> vec3<f32> {
+    let ambient = 0.1 * diffuseColor;
+    
+    let diff = max(dot(N, L), 0.0);
+    let diffuse = diff * diffuseColor;
+    
+    let R = reflect(-L, N);
+    let spec = pow(max(dot(V, R), 0.0), shininess);
+    let specular = spec * specularColor;
+    
+    return ambient + diffuse + specular;
+}
+
+// Blinn-Phong lighting
+fn blinnPhongLighting(
+    N: vec3<f32>,
+    L: vec3<f32>,
+    V: vec3<f32>,
+    diffuseColor: vec3<f32>,
+    specularColor: vec3<f32>,
+    shininess: f32
+) -> vec3<f32> {
+    let ambient = 0.1 * diffuseColor;
+    
+    let diff = max(dot(N, L), 0.0);
+    let diffuse = diff * diffuseColor;
+    
+    let H = normalize(L + V);
+    let spec = pow(max(dot(N, H), 0.0), shininess);
+    let specular = spec * specularColor;
+    
+    return ambient + diffuse + specular;
+}
+
+// Lambert diffuse
+fn lambertDiffuse(N: vec3<f32>, L: vec3<f32>) -> f32 {
+    return max(dot(N, L), 0.0);
+}
+
+// Oren-Nayar diffuse (for rough surfaces)
+fn orenNayarDiffuse(
+    N: vec3<f32>,
+    L: vec3<f32>,
+    V: vec3<f32>,
+    roughness: f32
+) -> f32 {
+    let NdotL = dot(N, L);
+    let NdotV = dot(N, V);
+    
+    let s = dot(L, V) - NdotL * NdotV;
+    var t = 1.0;
+    if (s > 0.0) {
+        t = max(NdotL, NdotV);
+    }
+    
+    let sigma2 = roughness * roughness;
+    let A = 1.0 - 0.5 * sigma2 / (sigma2 + 0.33);
+    let B = 0.45 * sigma2 / (sigma2 + 0.09);
+    
+    return max(NdotL, 0.0) * (A + B * s / t);
+}
+
+// Attenuation
+fn pointLightAttenuation(distance: f32, constant: f32, linear: f32, quadratic: f32) -> f32 {
+    return 1.0 / (constant + linear * distance + quadratic * distance * distance);
+}
+
+fn spotLightAttenuation(
+    lightDir: vec3<f32>,
+    spotDir: vec3<f32>,
+    innerCutoff: f32,
+    outerCutoff: f32
+) -> f32 {
+    let theta = dot(lightDir, normalize(-spotDir));
+    let epsilon = innerCutoff - outerCutoff;
+    return clamp((theta - outerCutoff) / epsilon, 0.0, 1.0);
+}
+
+// Shadow helpers
+fn shadowBias(N: vec3<f32>, L: vec3<f32>, baseBias: f32) -> f32 {
+    return max(baseBias * (1.0 - dot(N, L)), baseBias * 0.1);
+}
+
+fn pcfShadow(shadowCoord: vec3<f32>, shadowMap: texture_depth_2d, shadowSampler: sampler_comparison, texelSize: f32) -> f32 {
+    var shadow = 0.0;
+    for (var x: i32 = -1; x <= 1; x = x + 1) {
+        for (var y: i32 = -1; y <= 1; y = y + 1) {
+            let offset = vec2<f32>(f32(x), f32(y)) * texelSize;
+            shadow = shadow + textureSampleCompare(shadowMap, shadowSampler, shadowCoord.xy + offset, shadowCoord.z);
+        }
+    }
+    return shadow / 9.0;
+}
+
+// Tone mapping
+fn reinhardToneMapping(color: vec3<f32>) -> vec3<f32> {
+    return color / (color + vec3<f32>(1.0));
+}
+
+fn exposureToneMapping(color: vec3<f32>, exposure: f32) -> vec3<f32> {
+    return vec3<f32>(1.0) - exp(-color * exposure);
+}
+
+fn acesToneMapping(color: vec3<f32>) -> vec3<f32> {
+    let a = 2.51;
+    let b = 0.03;
+    let c = 2.43;
+    let d = 0.59;
+    let e = 0.14;
+    return clamp((color * (a * color + b)) / (color * (c * color + d) + e), vec3<f32>(0.0), vec3<f32>(1.0));
+}
+
+// Gamma correction
+fn gammaCorrect(color: vec3<f32>, gamma: f32) -> vec3<f32> {
+    return pow(color, vec3<f32>(1.0 / gamma));
+}
+
+fn linearToSRGB(color: vec3<f32>) -> vec3<f32> {
+    return pow(color, vec3<f32>(1.0 / 2.2));
+}
+
+fn sRGBToLinear(color: vec3<f32>) -> vec3<f32> {
+    return pow(color, vec3<f32>(2.2));
+}
+`;
+
+// Ray marching utilities
+export const raymarchingLibrary = `
+// Ray marching constants
+const MAX_STEPS: i32 = 256;
+const MAX_DIST: f32 = 100.0;
+const SURF_DIST: f32 = 0.001;
+
+// Basic ray marcher
+fn rayMarch(ro: vec3<f32>, rd: vec3<f32>, scene: fn(vec3<f32>) -> f32) -> f32 {
+    var dO = 0.0;
+    
+    for (var i = 0; i < MAX_STEPS; i = i + 1) {
+        let p = ro + rd * dO;
+        let dS = scene(p);
+        dO = dO + dS;
+        if (dO > MAX_DIST || dS < SURF_DIST) {
+            break;
+        }
+    }
+    
+    return dO;
+}
+
+// Calculate normal via gradient
+fn calcNormal(p: vec3<f32>, scene: fn(vec3<f32>) -> f32) -> vec3<f32> {
+    let e = vec2<f32>(SURF_DIST, 0.0);
+    let n = scene(p) - vec3<f32>(
+        scene(p - e.xyy),
+        scene(p - e.yxy),
+        scene(p - e.yyx)
+    );
+    return normalize(n);
+}
+
+// Soft shadows
+fn softShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32, scene: fn(vec3<f32>) -> f32) -> f32 {
+    var res = 1.0;
+    var t = mint;
+    
+    for (var i = 0; i < 64; i = i + 1) {
+        let h = scene(ro + rd * t);
+        if (h < 0.001) {
+            return 0.0;
+        }
+        res = min(res, k * h / t);
+        t = t + h;
+        if (t > maxt) {
+            break;
+        }
+    }
+    
+    return res;
+}
+
+// Ambient occlusion
+fn ambientOcclusion(p: vec3<f32>, n: vec3<f32>, scene: fn(vec3<f32>) -> f32) -> f32 {
+    var occ = 0.0;
+    var sca = 1.0;
+    
+    for (var i = 0; i < 5; i = i + 1) {
+        let h = 0.01 + 0.12 * f32(i) / 4.0;
+        let d = scene(p + h * n);
+        occ = occ + (h - d) * sca;
+        sca = sca * 0.95;
+    }
+    
+    return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
+}
+
+// Camera utilities
+fn createCamera(ro: vec3<f32>, ta: vec3<f32>, cr: f32) -> mat3x3<f32> {
+    let cw = normalize(ta - ro);
+    let cp = vec3<f32>(sin(cr), cos(cr), 0.0);
+    let cu = normalize(cross(cw, cp));
+    let cv = cross(cu, cw);
+    return mat3x3<f32>(cu, cv, cw);
+}
+
+fn getRayDirection(uv: vec2<f32>, p: vec3<f32>, target: vec3<f32>, fov: f32) -> vec3<f32> {
+    let cam = createCamera(p, target, 0.0);
+    let z = 1.0 / tan(fov * 0.5);
+    return normalize(cam * vec3<f32>(uv.x, uv.y, z));
+}
+`;
+
 // Export all libraries combined
 export const stdlib = {
   noise: noiseLibrary,
@@ -513,11 +811,13 @@ export const stdlib = {
   sdf: sdfLibrary,
   filter: filterLibrary,
   easing: easingLibrary,
+  lighting: lightingLibrary,
+  raymarching: raymarchingLibrary,
 };
 
 // Get all libraries as a single string
 export function getAllStdlib(): string {
-  return [noiseLibrary, colorLibrary, sdfLibrary, filterLibrary, easingLibrary].join('\n\n');
+  return [noiseLibrary, colorLibrary, sdfLibrary, filterLibrary, easingLibrary, lightingLibrary, raymarchingLibrary].join('\n\n');
 }
 
 // Get specific library functions
@@ -536,33 +836,38 @@ export function extractRequiredStdlib(code: string): string {
   const required: string[] = [];
 
   // Check for noise functions
-  if (code.includes('valueNoise') || code.includes('fbm') || code.includes('hash')) {
+  if (code.includes('valueNoise') || code.includes('fbm') || code.includes('hash') || code.includes('simplexNoise') || code.includes('voronoi')) {
     required.push(noiseLibrary);
   }
 
   // Check for color functions
-  if (code.includes('rgb2hsv') || code.includes('hsv2rgb') || code.includes('blend')) {
+  if (code.includes('rgb2hsv') || code.includes('hsv2rgb') || code.includes('blend') || code.includes('hueShift') || code.includes('saturate3')) {
     required.push(colorLibrary);
   }
 
   // Check for SDF functions
-  if (code.includes('sdCircle') || code.includes('sdBox') || code.includes('opUnion')) {
+  if (code.includes('sdCircle') || code.includes('sdBox') || code.includes('opUnion') || code.includes('sdSphere') || code.includes('opSmooth')) {
     required.push(sdfLibrary);
   }
 
   // Check for filter functions
-  if (code.includes('vignette') || code.includes('filmGrain') || code.includes('dither')) {
+  if (code.includes('vignette') || code.includes('filmGrain') || code.includes('dither') || code.includes('chromatic') || code.includes('barrel')) {
     required.push(filterLibrary);
   }
 
   // Check for easing functions
-  if (
-    code.includes('easeIn') ||
-    code.includes('easeOut') ||
-    code.includes('Bounce') ||
-    code.includes('Elastic')
-  ) {
+  if (code.includes('easeIn') || code.includes('easeOut') || code.includes('Bounce') || code.includes('Elastic')) {
     required.push(easingLibrary);
+  }
+
+  // Check for lighting functions
+  if (code.includes('cookTorrance') || code.includes('phongLighting') || code.includes('fresnelSchlick') || code.includes('distributionGGX') || code.includes('toneMapping')) {
+    required.push(lightingLibrary);
+  }
+
+  // Check for ray marching functions
+  if (code.includes('rayMarch') || code.includes('calcNormal') || code.includes('softShadow') || code.includes('ambientOcclusion') || code.includes('createCamera')) {
+    required.push(raymarchingLibrary);
   }
 
   return required.join('\n\n');

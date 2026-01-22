@@ -61,10 +61,45 @@ export {
   sdfLibrary,
   filterLibrary,
   easingLibrary,
+  lightingLibrary,
+  raymarchingLibrary,
   getAllStdlib,
   getStdlibFunction,
   extractRequiredStdlib,
 } from './stdlib';
+
+// Re-export type system
+export * from './type-system';
+
+// Re-export optimizer
+export {
+  Optimizer,
+  optimize,
+  type OptimizationPass,
+  type OptimizationResult,
+  type OptimizationStats,
+  type OptimizerOptions,
+  ConstantFoldingPass,
+  AlgebraicSimplificationPass,
+  DeadCodeEliminationPass,
+  CommonSubexpressionPass,
+  StrengthReductionPass,
+  PeepholeOptimizationPass,
+} from './optimizer';
+
+// Re-export diagnostics
+export {
+  DiagnosticFormatter,
+  createTypeMismatchDiagnostic,
+  createUndefinedVariableDiagnostic,
+  createInvalidSwizzleDiagnostic,
+  createPerformanceWarning,
+  findSimilarNames,
+  type RichDiagnostic,
+  type FormattedDiagnostic,
+  type DiagnosticCategory,
+  type QuickFix,
+} from './diagnostics';
 
 import type { CompilerOptions, CompileResult, Diagnostic } from './types';
 import { parse } from './parser';
