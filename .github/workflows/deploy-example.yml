@@ -40,10 +40,8 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Install dependencies
-        run: |  
-          npm install --package-lock-only
-          npm ci
+      - name: Install all dependencies
+        run: npm ci
 
       - name: Build packages
         run: npm run build --workspaces --if-present
