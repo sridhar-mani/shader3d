@@ -156,35 +156,48 @@ export function ShaderPlayground() {
   const [isCustom, setIsCustom] = useState(false);
   const [webgpuSupported, setWebgpuSupported] = useState(true);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const isMountedRef = useRef(true);
 
   // Check WebGPU support on mount
   useEffect(() => {
+    isMountedRef.current = true;
     if (!isWebGPUSupported()) {
       setWebgpuSupported(false);
       setCompileError(
         'WebGPU is not supported in your browser. Please use Chrome, Edge, or another WebGPU-enabled browser.'
       );
     }
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   // Compile TypeScript-like shader to WGSL using @shader3d/core
   const compileShader = useCallback(
     (source: string): string | null => {
+      if (!isMountedRef.current) return null;
+      
       try {
         const parseResult = parse(source);
         const transformResult = transform(parseResult.ast);
         const analysisResult = analyze(transformResult.ir);
         const codegenResult = codegen(analysisResult.ir);
-        setCompileError('');
+        if (isMountedRef.current) {
+          setCompileError('');
+        }
         return codegenResult.code;
       } catch (err) {
         // Fallback to pre-compiled WGSL for demo purposes
         const precompiled = wgslShaders[selectedShader];
         if (precompiled && !isCustom) {
-          setCompileError('');
+          if (isMountedRef.current) {
+            setCompileError('');
+          }
           return precompiled;
         }
-        setCompileError(err instanceof Error ? err.message : String(err));
+        if (isMountedRef.current) {
+          setCompileError(err instanceof Error ? err.message : String(err));
+        }
         return null;
       }
     },
@@ -277,13 +290,17 @@ export function ShaderPlayground() {
         device.destroy();
       };
     } catch (err) {
-      setCompileError(`WebGPU Error: ${err instanceof Error ? err.message : String(err)}`);
+      if (isMountedRef.current) {
+        setCompileError(`WebGPU Error: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
-  }, []);
+  }, [webgpuSupported]);
 
   useEffect(() => {
+    if (!isMountedRef.current) return;
+    
     const wgsl = compileShader(customCode);
-    if (wgsl) {
+    if (wgsl && isMountedRef.current) {
       setCompiledWGSL(wgsl);
       initShader(wgsl);
     }
