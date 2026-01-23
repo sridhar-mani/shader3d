@@ -1,6 +1,6 @@
 {
     "name": "@shader3d/ladder",
-    "version": "0.4.24",
+    "version": "0.4.25",
     "description": "Progressive learning system for Shader3D",
     "type": "module",
     "main": "./dist/index.js",
