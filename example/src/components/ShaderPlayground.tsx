@@ -176,7 +176,7 @@ export function ShaderPlayground() {
   const compileShader = useCallback(
     (source: string): string | null => {
       if (!isMountedRef.current) return null;
-      
+
       try {
         const parseResult = parse(source);
         const transformResult = transform(parseResult.ast);
@@ -204,101 +204,104 @@ export function ShaderPlayground() {
     [selectedShader, isCustom]
   );
 
-  const initShader = useCallback(async (wgslCode: string) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !webgpuSupported) return;
+  const initShader = useCallback(
+    async (wgslCode: string) => {
+      const canvas = canvasRef.current;
+      if (!canvas || !webgpuSupported) return;
 
-    // Clean up any existing WebGPU resources before initializing new ones
-    if (cleanupRef.current) {
+      // Clean up any existing WebGPU resources before initializing new ones
+      if (cleanupRef.current) {
+        try {
+          cleanupRef.current();
+        } catch (err) {
+          console.warn('Cleanup error:', err);
+        } finally {
+          cleanupRef.current = null;
+        }
+      }
+
       try {
-        cleanupRef.current();
+        const ctx = await initWebGPU(canvas);
+        const { device, context, format } = ctx;
+
+        const shaderModule = device.createShaderModule({ code: wgslCode });
+
+        // Check for uniform time
+        const hasTime = wgslCode.includes('time');
+        let timeBuffer: GPUBuffer | null = null;
+        let bindGroup: GPUBindGroup | null = null;
+
+        const pipeline = device.createRenderPipeline({
+          layout: 'auto',
+          vertex: { module: shaderModule, entryPoint: 'vs_main' },
+          fragment: {
+            module: shaderModule,
+            entryPoint: 'fs_main',
+            targets: [{ format }],
+          },
+        });
+
+        if (hasTime) {
+          timeBuffer = device.createBuffer({
+            size: 4,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          });
+          bindGroup = device.createBindGroup({
+            layout: pipeline.getBindGroupLayout(0),
+            entries: [{ binding: 0, resource: { buffer: timeBuffer } }],
+          });
+        }
+
+        const startTime = performance.now();
+
+        const render = (_frame: FrameData) => {
+          if (hasTime && timeBuffer) {
+            const time = (performance.now() - startTime) / 1000;
+            device.queue.writeBuffer(timeBuffer, 0, new Float32Array([time]));
+          }
+
+          const commandEncoder = device.createCommandEncoder();
+          const textureView = context.getCurrentTexture().createView();
+
+          const renderPass = commandEncoder.beginRenderPass({
+            colorAttachments: [
+              {
+                view: textureView,
+                loadOp: 'clear',
+                clearValue: { r: 0.05, g: 0.05, b: 0.1, a: 1.0 },
+                storeOp: 'store',
+              },
+            ],
+          });
+
+          renderPass.setPipeline(pipeline);
+          if (bindGroup) {
+            renderPass.setBindGroup(0, bindGroup);
+          }
+          renderPass.draw(3);
+          renderPass.end();
+          device.queue.submit([commandEncoder.finish()]);
+        };
+
+        const loop = createRenderLoop(render);
+        loop.start();
+
+        cleanupRef.current = () => {
+          loop.stop();
+          device.destroy();
+        };
       } catch (err) {
-        console.warn('Cleanup error:', err);
-      } finally {
-        cleanupRef.current = null;
-      }
-    }
-
-    try {
-      const ctx = await initWebGPU(canvas);
-      const { device, context, format } = ctx;
-
-      const shaderModule = device.createShaderModule({ code: wgslCode });
-
-      // Check for uniform time
-      const hasTime = wgslCode.includes('time');
-      let timeBuffer: GPUBuffer | null = null;
-      let bindGroup: GPUBindGroup | null = null;
-
-      const pipeline = device.createRenderPipeline({
-        layout: 'auto',
-        vertex: { module: shaderModule, entryPoint: 'vs_main' },
-        fragment: {
-          module: shaderModule,
-          entryPoint: 'fs_main',
-          targets: [{ format }],
-        },
-      });
-
-      if (hasTime) {
-        timeBuffer = device.createBuffer({
-          size: 4,
-          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        });
-        bindGroup = device.createBindGroup({
-          layout: pipeline.getBindGroupLayout(0),
-          entries: [{ binding: 0, resource: { buffer: timeBuffer } }],
-        });
-      }
-
-      const startTime = performance.now();
-
-      const render = (_frame: FrameData) => {
-        if (hasTime && timeBuffer) {
-          const time = (performance.now() - startTime) / 1000;
-          device.queue.writeBuffer(timeBuffer, 0, new Float32Array([time]));
+        if (isMountedRef.current) {
+          setCompileError(`WebGPU Error: ${err instanceof Error ? err.message : String(err)}`);
         }
-
-        const commandEncoder = device.createCommandEncoder();
-        const textureView = context.getCurrentTexture().createView();
-
-        const renderPass = commandEncoder.beginRenderPass({
-          colorAttachments: [
-            {
-              view: textureView,
-              loadOp: 'clear',
-              clearValue: { r: 0.05, g: 0.05, b: 0.1, a: 1.0 },
-              storeOp: 'store',
-            },
-          ],
-        });
-
-        renderPass.setPipeline(pipeline);
-        if (bindGroup) {
-          renderPass.setBindGroup(0, bindGroup);
-        }
-        renderPass.draw(3);
-        renderPass.end();
-        device.queue.submit([commandEncoder.finish()]);
-      };
-
-      const loop = createRenderLoop(render);
-      loop.start();
-
-      cleanupRef.current = () => {
-        loop.stop();
-        device.destroy();
-      };
-    } catch (err) {
-      if (isMountedRef.current) {
-        setCompileError(`WebGPU Error: ${err instanceof Error ? err.message : String(err)}`);
       }
-    }
-  }, [webgpuSupported]);
+    },
+    [webgpuSupported]
+  );
 
   useEffect(() => {
     if (!isMountedRef.current) return;
-    
+
     const wgsl = compileShader(customCode);
     if (wgsl && isMountedRef.current) {
       setCompiledWGSL(wgsl);
