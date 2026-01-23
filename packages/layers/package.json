@@ -17,7 +17,7 @@
         "dev": "tsc --watch"
     },
     "dependencies": {
-        "@shader3d/core": "workspace:*"
+        "@shader3d/core": "*"
     },
     "peerDependencies": {
         "react": "^18.0.0"
