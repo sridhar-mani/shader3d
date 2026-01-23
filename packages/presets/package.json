@@ -17,8 +17,8 @@
         "dev": "tsc --watch"
     },
     "dependencies": {
-        "@shader3d/core": "workspace:*",
-        "@shader3d/layers": "workspace:*"
+        "@shader3d/core": "*",
+        "@shader3d/layers": "*"
     },
     "keywords": ["shader", "presets", "effects", "filters", "webgpu"],
     "license": "MIT"
