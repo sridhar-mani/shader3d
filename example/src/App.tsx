@@ -37,11 +37,36 @@ const tabs: Tab[] = [
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('playground');
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'playground':
+        return <ShaderPlayground />;
+      case 'layers':
+        return <LayerEditor />;
+      case 'presets':
+        return <PresetGallery />;
+      case 'paint':
+        return <PaintEffects />;
+      case 'talk':
+        return <NaturalLanguage />;
+      case 'learn':
+        return <LearnFromExamples />;
+    }
+  };
+
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#fff' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#0a0a0f',
+        color: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       <header
         style={{
-          padding: '1rem 2rem',
+          padding: '1.5rem 2rem',
           borderBottom: '1px solid #222',
           display: 'flex',
           alignItems: 'center',
@@ -63,6 +88,7 @@ export default function App() {
           padding: '1rem 2rem',
           borderBottom: '1px solid #222',
           overflowX: 'auto',
+          flexWrap: 'wrap',
         }}
       >
         {tabs.map((tab) => (
@@ -81,51 +107,53 @@ export default function App() {
               gap: '0.5rem',
               whiteSpace: 'nowrap',
               transition: 'all 0.2s',
+              fontSize: '0.95rem',
             }}
           >
-            <span style={{ fontSize: '1.2rem' }}>{tab.icon}</span>
+            <span>{tab.icon}</span>
             <span>{tab.label}</span>
           </button>
         ))}
       </nav>
 
-      <main style={{ padding: '2rem' }}>
+      <main style={{ padding: '2rem', flex: 1, overflow: 'auto' }}>
         <div style={{ marginBottom: '1.5rem' }}>
           <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem' }}>
             {tabs.find((t) => t.id === activeTab)?.icon}{' '}
             {tabs.find((t) => t.id === activeTab)?.label}
           </h2>
-          <p style={{ margin: 0, color: '#888' }}>
+          <p style={{ margin: 0, color: '#888', fontSize: '0.9rem' }}>
             {tabs.find((t) => t.id === activeTab)?.description}
           </p>
         </div>
 
-        {activeTab === 'playground' && <ShaderPlayground />}
-        {activeTab === 'layers' && <LayerEditor />}
-        {activeTab === 'presets' && <PresetGallery />}
-        {activeTab === 'paint' && <PaintEffects />}
-        {activeTab === 'talk' && <NaturalLanguage />}
-        {activeTab === 'learn' && <LearnFromExamples />}
+        <div style={{ maxWidth: '1400px' }}>{renderContent()}</div>
       </main>
 
       <footer
         style={{
-          padding: '2rem',
+          padding: '1.5rem 2rem',
           borderTop: '1px solid #222',
           textAlign: 'center',
           color: '#666',
-          fontSize: '0.9rem',
+          fontSize: '0.85rem',
         }}
       >
-        <p>
+        <p style={{ margin: '0.5rem 0' }}>
           <strong>Shader3D</strong> - Write GPU shaders in TypeScript, compile to WGSL for WebGPU
         </p>
-        <p>
-          <a href="https://github.com/sridhar-mani/newLang" style={{ color: '#4a9eff' }}>
+        <p style={{ margin: '0.5rem 0' }}>
+          <a
+            href="https://github.com/sridhar-mani/newLang"
+            style={{ color: '#4a9eff', textDecoration: 'none' }}
+          >
             GitHub
           </a>
           {' • '}
-          <a href="https://www.npmjs.com/org/shader3d" style={{ color: '#4a9eff' }}>
+          <a
+            href="https://www.npmjs.com/org/shader3d"
+            style={{ color: '#4a9eff', textDecoration: 'none' }}
+          >
             npm
           </a>
         </p>

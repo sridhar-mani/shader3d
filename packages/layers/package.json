@@ -1,27 +1,33 @@
 {
-    "name": "@shader3d/layers",
-    "version": "0.1.0",
-    "description": "Photoshop-style layer system for GPU shader effects",
-    "type": "module",
-    "main": "./dist/index.js",
-    "module": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "exports": {
-        ".": {
-            "import": "./dist/index.js",
-            "types": "./dist/index.d.ts"
-        }
-    },
-    "scripts": {
-        "build": "tsc",
-        "dev": "tsc --watch"
-    },
-    "dependencies": {
-        "@shader3d/core": "*"
-    },
-    "peerDependencies": {
-        "react": "^18.0.0 || ^19.0.0"
-    },
-    "keywords": ["shader", "layers", "effects", "webgpu", "no-code"],
-    "license": "MIT"
+  "name": "@shader3d/layers",
+  "version": "0.1.0",
+  "description": "Photoshop-style layer system for GPU shader effects",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@shader3d/core": "*"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "keywords": [
+    "shader",
+    "layers",
+    "effects",
+    "webgpu",
+    "no-code"
+  ],
+  "license": "MIT"
 }
